@@ -1,0 +1,240 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <title>Admin Login - Zam Digital Store</title>
+
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+        font-family: Arial, sans-serif;
+      }
+
+      body {
+        min-height: 100vh;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+
+        background: linear-gradient(135deg, #4f46e5, #7c3aed, #2563eb);
+      }
+
+      .login-container {
+        width: 400px;
+        background: white;
+        padding: 40px;
+        border-radius: 18px;
+
+        box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25);
+      }
+
+      .logo {
+        text-align: center;
+        font-size: 32px;
+        font-weight: bold;
+        color: #4f46e5;
+        margin-bottom: 8px;
+      }
+
+      .subtitle {
+        text-align: center;
+        color: #777;
+        margin-bottom: 30px;
+        font-size: 14px;
+      }
+
+      h2 {
+        text-align: center;
+        color: #222;
+        margin-bottom: 25px;
+      }
+
+      .form-group {
+        margin-bottom: 20px;
+      }
+
+      label {
+        display: block;
+        margin-bottom: 8px;
+        font-weight: 600;
+        color: #333;
+      }
+
+      input {
+        width: 100%;
+        padding: 13px 15px;
+
+        border: 1px solid #ddd;
+        border-radius: 8px;
+
+        font-size: 15px;
+        outline: none;
+
+        transition: 0.3s;
+      }
+
+      input:focus {
+        border-color: #4f46e5;
+
+        box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.12);
+      }
+
+      .login-btn {
+        width: 100%;
+        padding: 14px;
+
+        border: none;
+        border-radius: 8px;
+
+        background: linear-gradient(135deg, #4f46e5, #7c3aed);
+
+        color: white;
+        font-size: 16px;
+        font-weight: bold;
+
+        cursor: pointer;
+
+        transition: 0.3s;
+      }
+
+      .login-btn:hover {
+        transform: translateY(-2px);
+
+        box-shadow: 0 8px 20px rgba(79, 70, 229, 0.35);
+      }
+
+      .login-btn:active {
+        transform: translateY(0);
+      }
+
+      .message {
+        text-align: center;
+        margin-top: 18px;
+        font-size: 14px;
+      }
+
+      .back-link {
+        display: block;
+        text-align: center;
+
+        margin-top: 20px;
+
+        color: #4f46e5;
+        text-decoration: none;
+
+        font-size: 14px;
+      }
+
+      .back-link:hover {
+        text-decoration: underline;
+      }
+
+      @media (max-width: 500px) {
+        .login-container {
+          width: 90%;
+          padding: 30px 25px;
+        }
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="login-container">
+      <div class="logo">Zam Digital Store</div>
+
+      <div class="subtitle">Admin Panel</div>
+
+      <h2>Admin Login</h2>
+
+      <form id="adminLoginForm">
+        <div class="form-group">
+          <label for="username"> Username </label>
+
+          <input
+            type="text"
+            id="username"
+            placeholder="Enter admin username"
+            required
+          />
+        </div>
+
+        <div class="form-group">
+          <label for="password"> Password </label>
+
+          <input
+            type="password"
+            id="password"
+            placeholder="Enter admin password"
+            required
+          />
+        </div>
+
+        <button type="submit" class="login-btn">Login</button>
+      </form>
+
+      <div id="message" class="message"></div>
+
+      <a href="index.html" class="back-link"> ← Back to Store </a>
+    </div>
+
+    <script>
+      const adminLoginForm = document.getElementById("adminLoginForm");
+      const message = document.getElementById("message");
+
+      adminLoginForm.addEventListener("submit", async function (e) {
+        e.preventDefault();
+
+        const username = document.getElementById("username").value.trim();
+        const password = document.getElementById("password").value;
+
+        try {
+          const response = await fetch("/api/admin/login", {
+            method: "POST",
+
+            headers: {
+              "Content-Type": "application/x-www-form-urlencoded",
+            },
+
+            body: new URLSearchParams({
+              username: username,
+              password: password,
+            }),
+          });
+
+          const result = (await response.text()).trim();
+
+          console.log("Login Response:", result);
+          console.log("Status:", response.status);
+
+          // Login failed
+          if (!response.ok) {
+            message.textContent = result || "Invalid username or password ❌";
+            message.style.color = "red";
+            return;
+          }
+
+          // Login successful
+          localStorage.setItem("adminLoggedIn", "true");
+
+          message.textContent = "SUCCESS ✅";
+          message.style.color = "green";
+
+          // Admin dashboard open
+          setTimeout(() => {
+            window.location.href = "/admin.html";
+          }, 500);
+        } catch (error) {
+          console.error("Admin Login Error:", error);
+
+          message.textContent = "Unable to connect to the server ❌";
+
+          message.style.color = "red";
+        }
+      });
+    </script>
+  </body>
+</html>

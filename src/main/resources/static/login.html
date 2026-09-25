@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <title>Login - Zam Digital Store</title>
+
+    <link rel="stylesheet" href="style.css" />
+  </head>
+
+  <body class="auth-page">
+    <header class="auth-header">
+      <h1>Zam Digital Store</h1>
+      <p>Login to your account</p>
+    </header>
+
+    <main class="auth-container">
+      <div class="auth-card">
+        <h2>Login</h2>
+
+        <form id="loginForm">
+          <div class="auth-form-group">
+            <label>Email</label>
+            <input type="email" id="email" placeholder="Enter Email" required />
+          </div>
+
+          <div class="auth-form-group">
+            <label>Password</label>
+            <input
+              type="password"
+              id="password"
+              placeholder="Enter Password"
+              required
+            />
+          </div>
+
+          <button type="submit" class="auth-submit-btn">Login</button>
+        </form>
+
+        <p class="auth-bottom-text">
+          Don't have an account?
+          <a href="register.html">Create Account</a>
+        </p>
+      </div>
+    </main>
+
+    <script src="login.js"></script>
+  </body>
+</html>
