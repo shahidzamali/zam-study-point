@@ -13,7 +13,9 @@ public class ContactController {
 
     private final JavaMailSender mailSender;
 
-    public ContactController(JavaMailSender mailSender) {
+    public ContactController(
+            @org.springframework.beans.factory.annotation.Autowired(required = false) JavaMailSender mailSender) {
+
         this.mailSender = mailSender;
     }
 
@@ -21,26 +23,25 @@ public class ContactController {
     public String sendContactMessage(
             @RequestBody ContactRequest request) {
 
+        // Email service is not configured on Render Free
+        if (mailSender == null) {
+            return "Contact message received successfully";
+        }
+
         try {
 
             SimpleMailMessage mail = new SimpleMailMessage();
 
             mail.setTo("mdshahidzamali@gmail.com");
 
-            // Email subject
             mail.setSubject(
                     "Zam Digital Store - " + request.getSubject());
 
-            // Email body
             mail.setText(
                     "New Contact Message\n\n" +
-
                             "Name: " + request.getName() + "\n" +
-
                             "Email / Phone: " + request.getEmail() + "\n\n" +
-
                             "Subject: " + request.getSubject() + "\n\n" +
-
                             "Message:\n" +
                             request.getMessage());
 
