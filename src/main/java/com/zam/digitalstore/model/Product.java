@@ -1,5 +1,8 @@
 package com.zam.digitalstore.model;
 
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
+
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -40,9 +43,8 @@ public class Product {
     // DEMO / PREVIEW IMAGES
     // ==========================================
 
-    @ElementCollection
-    @CollectionTable(name = "product_preview_images", joinColumns = @JoinColumn(name = "product_id"))
-    @Column(name = "image_url")
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(columnDefinition = "json")
     private List<String> previewImages = new ArrayList<>();
 
     // ==========================================
