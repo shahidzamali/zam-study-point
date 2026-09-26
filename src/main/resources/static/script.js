@@ -1,4 +1,4 @@
-const API_BASE = "http://localhost:8081";
+const API_BASE = "";
 
 let allProducts = [];
 
@@ -1887,7 +1887,7 @@ async function buyProductDirect(productId) {
 
       console.error("Order creation error:", errorText);
 
-      alert("Razorpay order create nahi hua.");
+      alert("Razorpay order are not create.");
 
       return;
     }
@@ -1937,12 +1937,12 @@ async function buyProductDirect(productId) {
               "Payment successful! 🎉\n\n" + "Your product has been purchased.",
             );
           } else {
-            alert("Payment ho gaya, lekin verification failed.\n" + result);
+            alert("Payment done, but verification failed.\n" + result);
           }
         } catch (error) {
           console.error("Payment verification error:", error);
 
-          alert("Payment verification me problem aayi.");
+          alert("problem in Payment verification.");
         }
       },
 
@@ -1965,7 +1965,7 @@ async function buyProductDirect(productId) {
   } catch (error) {
     console.error("Buy Now Error:", error);
 
-    alert("Payment start nahi ho paya.\n" + error.message);
+    alert("Payment are not start.\n" + error.message);
   }
 }
 // ==========================================
@@ -2003,7 +2003,7 @@ if (contactForm) {
     };
 
     try {
-      const response = await fetch("http://localhost:8081/api/contact", {
+      const response = await fetch("/api/contact", {
         method: "POST",
 
         headers: {
