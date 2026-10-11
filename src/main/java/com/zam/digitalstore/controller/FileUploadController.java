@@ -1,238 +1,120 @@
 package com.zam.digitalstore.controller;
 
+import com.cloudinary.Cloudinary;
+import com.cloudinary.utils.ObjectUtils;
+
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.nio.file.*;
+import java.util.Map;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/admin")
 @CrossOrigin("*")
 public class FileUploadController {
 
-        // =========================================================
-        // FILE STORAGE LOCATIONS
-        // =========================================================
+        private final Cloudinary cloudinary;
 
         private final Path productsPath = Paths.get("uploads/products")
-                        .toAbsolutePath()
-                        .normalize();
+                        .toAbsolutePath().normalize();
 
-        private final Path previewPath = Paths.get("uploads/previews")
-                        .toAbsolutePath()
-                        .normalize();
+        public FileUploadController(
+                        @Value("${CLOUDINARY_CLOUD_NAME}") String cloudName,
+                        @Value("${CLOUDINARY_API_KEY}") String apiKey,
+                        @Value("${CLOUDINARY_API_SECRET}") String apiSecret) {
 
-        private final Path thumbnailPath = Paths.get("uploads/thumbnails")
-                        .toAbsolutePath()
-                        .normalize();
+                this.cloudinary = new Cloudinary(ObjectUtils.asMap(
+                                "cloud_name", cloudName,
+                                "api_key", apiKey,
+                                "api_secret", apiSecret,
+                                "secure", true));
+        }
 
-        // =========================================================
-        // UPLOAD PRODUCT PDF
-        // =========================================================
-
+        // PDF: temporary existing local storage
         @PostMapping(value = "/upload-file", consumes = "multipart/form-data")
         public ResponseEntity<String> uploadFile(
                         @RequestParam("file") MultipartFile file) {
 
                 try {
-
                         if (file == null || file.isEmpty()) {
                                 return ResponseEntity.badRequest()
                                                 .body("Please select a PDF file");
                         }
 
-                        Files.createDirectories(productsPath);
+                        String name = Paths.get(file.getOriginalFilename())
+                                        .getFileName().toString();
 
-                        String fileName = file.getOriginalFilename();
-
-                        if (fileName == null || fileName.isBlank()) {
-                                return ResponseEntity.badRequest()
-                                                .body("Invalid file name");
-                        }
-
-                        fileName = Paths.get(fileName)
-                                        .getFileName()
-                                        .toString();
-
-                        if (!fileName.toLowerCase().endsWith(".pdf")) {
+                        if (!name.toLowerCase().endsWith(".pdf")) {
                                 return ResponseEntity.badRequest()
                                                 .body("Only PDF files are allowed");
                         }
 
-                        Path filePath = productsPath
-                                        .resolve(fileName)
-                                        .normalize();
-
-                        if (!filePath.startsWith(productsPath)) {
-                                return ResponseEntity.badRequest()
-                                                .body("Invalid file path");
-                        }
-
-                        Files.copy(
-                                        file.getInputStream(),
-                                        filePath,
+                        Files.createDirectories(productsPath);
+                        Files.copy(file.getInputStream(),
+                                        productsPath.resolve(name).normalize(),
                                         StandardCopyOption.REPLACE_EXISTING);
 
-                        System.out.println(
-                                        "PDF uploaded successfully: " + fileName);
-
-                        // IMPORTANT:
-                        // Return ONLY filename.
-                        // Database will store filename.
-                        return ResponseEntity.ok(fileName);
+                        return ResponseEntity.ok(name);
 
                 } catch (IOException e) {
-
-                        e.printStackTrace();
-
                         return ResponseEntity.internalServerError()
-                                        .body("PDF upload failed: " + e.getMessage());
+                                        .body("PDF upload failed");
                 }
         }
 
-        // =========================================================
-        // UPLOAD DEMO / PREVIEW IMAGE
-        // =========================================================
-
+        // Demo / preview images: Cloudinary
         @PostMapping(value = "/upload-preview", consumes = "multipart/form-data")
         public ResponseEntity<String> uploadPreview(
                         @RequestParam("file") MultipartFile file) {
-
-                try {
-
-                        if (file == null || file.isEmpty()) {
-                                return ResponseEntity.badRequest()
-                                                .body("Please select a demo image");
-                        }
-
-                        Files.createDirectories(previewPath);
-
-                        String fileName = file.getOriginalFilename();
-
-                        if (fileName == null || fileName.isBlank()) {
-                                return ResponseEntity.badRequest()
-                                                .body("Invalid image name");
-                        }
-
-                        fileName = Paths.get(fileName)
-                                        .getFileName()
-                                        .toString();
-
-                        String lowerName = fileName.toLowerCase();
-
-                        if (!(lowerName.endsWith(".jpg")
-                                        || lowerName.endsWith(".jpeg")
-                                        || lowerName.endsWith(".png")
-                                        || lowerName.endsWith(".webp"))) {
-
-                                return ResponseEntity.badRequest()
-                                                .body(
-                                                                "Only JPG, JPEG, PNG and WEBP images are allowed");
-                        }
-
-                        Path filePath = previewPath
-                                        .resolve(fileName)
-                                        .normalize();
-
-                        if (!filePath.startsWith(previewPath)) {
-                                return ResponseEntity.badRequest()
-                                                .body("Invalid file path");
-                        }
-
-                        Files.copy(
-                                        file.getInputStream(),
-                                        filePath,
-                                        StandardCopyOption.REPLACE_EXISTING);
-
-                        System.out.println(
-                                        "Demo image uploaded successfully: "
-                                                        + fileName);
-
-                        return ResponseEntity.ok(
-                                        "/previews/" + fileName);
-
-                } catch (IOException e) {
-
-                        e.printStackTrace();
-
-                        return ResponseEntity.internalServerError()
-                                        .body(
-                                                        "Demo image upload failed: "
-                                                                        + e.getMessage());
-                }
+                return uploadImage(file, "previews");
         }
 
-        // =========================================================
-        // UPLOAD PRODUCT THUMBNAIL
-        // =========================================================
-
+        // Product thumbnail: Cloudinary
         @PostMapping(value = "/upload-thumbnail", consumes = "multipart/form-data")
         public ResponseEntity<String> uploadThumbnail(
                         @RequestParam("file") MultipartFile file) {
+                return uploadImage(file, "thumbnails");
+        }
+
+        private ResponseEntity<String> uploadImage(
+                        MultipartFile file, String folder) {
 
                 try {
-
                         if (file == null || file.isEmpty()) {
                                 return ResponseEntity.badRequest()
-                                                .body("Please select a thumbnail image");
+                                                .body("Please select an image");
                         }
 
-                        Files.createDirectories(thumbnailPath);
+                        String name = Paths.get(file.getOriginalFilename())
+                                        .getFileName().toString().toLowerCase();
 
-                        String fileName = file.getOriginalFilename();
-
-                        if (fileName == null || fileName.isBlank()) {
+                        if (!(name.endsWith(".jpg")
+                                        || name.endsWith(".jpeg")
+                                        || name.endsWith(".png")
+                                        || name.endsWith(".webp"))) {
                                 return ResponseEntity.badRequest()
-                                                .body("Invalid thumbnail name");
+                                                .body("Only JPG, JPEG, PNG and WEBP images are allowed");
                         }
 
-                        fileName = Paths.get(fileName)
-                                        .getFileName()
-                                        .toString();
+                        Map<?, ?> result = cloudinary.uploader().upload(
+                                        file.getBytes(),
+                                        ObjectUtils.asMap(
+                                                        "resource_type", "image",
+                                                        "folder", "zam-study-point/" + folder,
+                                                        "public_id", UUID.randomUUID().toString()));
 
-                        String lowerName = fileName.toLowerCase();
+                        String url = result.get("secure_url").toString();
+                        return ResponseEntity.ok(url);
 
-                        if (!(lowerName.endsWith(".jpg")
-                                        || lowerName.endsWith(".jpeg")
-                                        || lowerName.endsWith(".png")
-                                        || lowerName.endsWith(".webp"))) {
-
-                                return ResponseEntity.badRequest()
-                                                .body(
-                                                                "Only JPG, JPEG, PNG and WEBP images are allowed");
-                        }
-
-                        Path filePath = thumbnailPath
-                                        .resolve(fileName)
-                                        .normalize();
-
-                        if (!filePath.startsWith(thumbnailPath)) {
-                                return ResponseEntity.badRequest()
-                                                .body("Invalid file path");
-                        }
-
-                        Files.copy(
-                                        file.getInputStream(),
-                                        filePath,
-                                        StandardCopyOption.REPLACE_EXISTING);
-
-                        System.out.println(
-                                        "Thumbnail uploaded successfully: "
-                                                        + fileName);
-
-                        return ResponseEntity.ok(
-                                        "/thumbnails/" + fileName);
-
-                } catch (IOException e) {
-
+                } catch (Exception e) {
                         e.printStackTrace();
-
                         return ResponseEntity.internalServerError()
-                                        .body(
-                                                        "Thumbnail upload failed: "
-                                                                        + e.getMessage());
+                                        .body("Image upload failed. Check server logs.");
                 }
         }
 }
