@@ -5,13 +5,21 @@ import com.zam.digitalstore.model.Product;
 import com.zam.digitalstore.repository.PaymentRepository;
 import com.zam.digitalstore.repository.ProductRepository;
 
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.InputStreamResource;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
+import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.io.InputStream;
+import java.net.HttpURLConnection;
+import java.net.URI;
+import java.net.URLConnection;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Optional;
@@ -21,156 +29,182 @@ import java.util.Optional;
 @CrossOrigin("*")
 public class SecureFileController {
 
-        private final PaymentRepository paymentRepository;
-        private final ProductRepository productRepository;
+    private static final String DOSYA_PREFIX = "DOSYA_FILE_ID:";
 
-        public SecureFileController(
-                        PaymentRepository paymentRepository,
-                        ProductRepository productRepository) {
+    private final PaymentRepository paymentRepository;
+    private final ProductRepository productRepository;
+    private final String dosyaReadApiKey;
 
-                this.paymentRepository = paymentRepository;
-                this.productRepository = productRepository;
-        }
+    public SecureFileController(
+            PaymentRepository paymentRepository,
+            ProductRepository productRepository,
+            @Value("${DOSYA_READ_API_KEY:}") String dosyaReadApiKey) {
 
-        @GetMapping("/download/{productId}")
-        public ResponseEntity<Resource> downloadProduct(
-                @PathVariable Long productId,
-                @RequestParam String email) {
+        this.paymentRepository = paymentRepository;
+        this.productRepository = productRepository;
+        this.dosyaReadApiKey = dosyaReadApiKey;
+    }
 
-                try {
+    @GetMapping("/download/{productId}")
+    public ResponseEntity<Resource> downloadProduct(
+            @PathVariable Long productId,
+            @RequestParam String email) {
 
-                        System.out.println("========== DOWNLOAD DEBUG ==========");
+        try {
+            email = email.trim().replace("\"", "").replace("'", "");
 
-                        email = email.trim()
-                                        .replace("\"", "")
-                                        .replace("'", "");
+            Optional<Payment> payment = paymentRepository
+                    .findByCustomerEmailAndProductIdAndStatus(
+                            email, productId, "SUCCESS");
 
-                        System.out.println("Customer Email: [" + email + "]");
-                        System.out.println("Product ID: [" + productId + "]");
+            if (payment.isEmpty()) {
+                return ResponseEntity.status(403).build();
+            }
 
-                        Optional<Payment> payment = paymentRepository
-                                        .findByCustomerEmailAndProductIdAndStatus(
-                                                        email,
-                                                        productId,
-                                                        "SUCCESS");
+            Payment p = payment.get();
 
-                        System.out.println(
-                                        "Payment Found: " + payment.isPresent());
+            if (p.getProductId() == null
+                    || !p.getProductId().equals(productId)
+                    || !"SUCCESS".equalsIgnoreCase(p.getStatus())) {
+                return ResponseEntity.status(403).build();
+            }
 
-                        if (payment.isEmpty()) {
+            Optional<Product> product = productRepository.findById(productId);
 
-                                System.out.println(
-                                                "❌ PAYMENT NOT FOUND");
+            if (product.isEmpty()) {
+                return ResponseEntity.notFound().build();
+            }
 
-                                return ResponseEntity.status(403).build();
-                        }
+            String storedFile = product.get().getFileUrl();
 
-                        Payment p = payment.get();
+            if (storedFile == null || storedFile.isBlank()) {
+                return ResponseEntity.notFound().build();
+            }
 
-                        System.out.println(
-                                        "DB Payment ID: [" +
-                                                        p.getRazorpayPaymentId() +
-                                                        "]");
+            // dosya.dev file
+            if (storedFile.startsWith(DOSYA_PREFIX)) {
+                String fileId = storedFile.substring(DOSYA_PREFIX.length()).trim();
 
-                        System.out.println(
-                                        "DB Product ID: [" +
-                                                        p.getProductId() +
-                                                        "]");
-
-                        System.out.println(
-                                        "DB Status: [" +
-                                                        p.getStatus() +
-                                                        "]");
-
-                        // ==========================================
-                        // STEP 2: CHECK PRODUCT ID
-                        // ==========================================
-
-                        if (!p.getProductId().equals(productId)) {
-
-                                System.out.println(
-                                                "❌ PRODUCT ID DOES NOT MATCH");
-
-                                return ResponseEntity.status(403).build();
-                        }
-
-                        // ==========================================
-                        // STEP 3: CHECK PAYMENT STATUS
-                        // ==========================================
-
-                        if (!"SUCCESS".equalsIgnoreCase(p.getStatus())) {
-
-                                System.out.println(
-                                                "❌ PAYMENT STATUS IS NOT SUCCESS");
-
-                                return ResponseEntity.status(403).build();
-                        }
-
-                        // ==========================================
-                        // STEP 4: FIND PRODUCT
-                        // ==========================================
-
-                        Optional<Product> product = productRepository.findById(productId);
-
-                        if (product.isEmpty()) {
-
-                                System.out.println(
-                                                "❌ PRODUCT NOT FOUND");
-
-                                return ResponseEntity.notFound().build();
-                        }
-
-                        // ==========================================
-                        // STEP 5: GET FILE
-                        // ==========================================
-
-                        String fileName = product.get().getFileUrl();
-
-                        fileName = Paths.get(fileName)
-                                        .getFileName()
-                                        .toString();
-
-                        Path filePath = Paths.get(
-                                        "uploads/products",
-                                        fileName).toAbsolutePath().normalize();
-
-                        Resource resource = new UrlResource(filePath.toUri());
-
-                        if (!resource.exists() ||
-                                        !resource.isReadable()) {
-
-                                System.out.println(
-                                                "❌ PDF FILE NOT FOUND");
-
-                                return ResponseEntity.notFound().build();
-                        }
-
-                        // ==========================================
-                        // STEP 6: DOWNLOAD
-                        // ==========================================
-
-                        System.out.println(
-                                        "✅ PAYMENT VERIFIED");
-
-                        System.out.println(
-                                        "✅ DOWNLOAD ALLOWED");
-
-                        return ResponseEntity.ok()
-                                        .contentType(MediaType.APPLICATION_PDF)
-                                        .header(
-                                                        HttpHeaders.CONTENT_DISPOSITION,
-                                                        "attachment; filename=\"" +
-                                                                        resource.getFilename() +
-                                                                        "\"")
-                                        .body(resource);
-
-                } catch (Exception e) {
-
-                        e.printStackTrace();
-
-                        return ResponseEntity
-                                        .internalServerError()
-                                        .build();
+                if (fileId.isBlank() || dosyaReadApiKey.isBlank()) {
+                    return ResponseEntity.internalServerError().build();
                 }
+
+                String apiUrl = "https://api.dosya.dev/api/files/"
+                        + fileId + "/download";
+
+                HttpURLConnection apiConnection = (HttpURLConnection) URI.create(apiUrl)
+                        .toURL().openConnection();
+
+                apiConnection.setRequestMethod("GET");
+                apiConnection.setRequestProperty(
+                        "Authorization", "Bearer " + dosyaReadApiKey);
+                apiConnection.setConnectTimeout(15000);
+                apiConnection.setReadTimeout(60000);
+                apiConnection.setInstanceFollowRedirects(false);
+
+                int status = apiConnection.getResponseCode();
+
+                if (status != HttpURLConnection.HTTP_MOVED_TEMP
+                        && status != 302) {
+                    apiConnection.disconnect();
+                    return ResponseEntity.status(502).build();
+                }
+
+                String downloadUrl = apiConnection.getHeaderField("Location");
+                apiConnection.disconnect();
+
+                if (downloadUrl == null || downloadUrl.isBlank()) {
+                    return ResponseEntity.status(502).build();
+                }
+
+                URI downloadUri = URI.create(downloadUrl);
+
+                // Accept only HTTPS redirects to Cloudflare R2 storage.
+                if (!"https".equalsIgnoreCase(downloadUri.getScheme())
+                        || downloadUri.getHost() == null
+                        || !downloadUri.getHost()
+                                .toLowerCase()
+                                .endsWith(".r2.cloudflarestorage.com")) {
+                    return ResponseEntity.status(502).build();
+                }
+
+                URLConnection fileConnection = downloadUri.toURL().openConnection();
+                fileConnection.setConnectTimeout(15000);
+                fileConnection.setReadTimeout(60000);
+
+                InputStream input = fileConnection.getInputStream();
+                InputStreamResource resource = new InputStreamResource(input);
+
+                return ResponseEntity.ok()
+                        .contentType(MediaType.APPLICATION_PDF)
+                        .header(
+                                HttpHeaders.CONTENT_DISPOSITION,
+                                ContentDisposition.attachment()
+                                        .filename(
+                                                "study-notes.pdf",
+                                                StandardCharsets.UTF_8)
+                                        .build().toString())
+                        .body(resource);
+            }
+
+            // Existing Cloudinary PDF support
+            if (storedFile.startsWith("https://")) {
+                URI uri = URI.create(storedFile);
+
+                if (!"res.cloudinary.com".equalsIgnoreCase(uri.getHost())
+                        || uri.getPath() == null
+                        || !uri.getPath().contains("/raw/upload/")) {
+                    return ResponseEntity.badRequest().build();
+                }
+
+                String fileName = Paths.get(uri.getPath()).getFileName().toString();
+
+                URLConnection connection = uri.toURL().openConnection();
+                connection.setConnectTimeout(15000);
+                connection.setReadTimeout(60000);
+
+                InputStream input = connection.getInputStream();
+
+                return ResponseEntity.ok()
+                        .contentType(MediaType.APPLICATION_PDF)
+                        .header(
+                                HttpHeaders.CONTENT_DISPOSITION,
+                                ContentDisposition.attachment()
+                                        .filename(
+                                                fileName,
+                                                StandardCharsets.UTF_8)
+                                        .build().toString())
+                        .body(new InputStreamResource(input));
+            }
+
+            // Existing legacy local-file support
+            String fileName = Paths.get(storedFile).getFileName().toString();
+
+            Path filePath = Paths.get(
+                    "uploads", "products", fileName)
+                    .toAbsolutePath().normalize();
+
+            Resource resource = new UrlResource(filePath.toUri());
+
+            if (!resource.exists() || !resource.isReadable()) {
+                System.out.println("PDF FILE NOT FOUND: " + fileName);
+                return ResponseEntity.notFound().build();
+            }
+
+            return ResponseEntity.ok()
+                    .contentType(MediaType.APPLICATION_PDF)
+                    .header(
+                            HttpHeaders.CONTENT_DISPOSITION,
+                            ContentDisposition.attachment()
+                                    .filename(
+                                            fileName,
+                                            StandardCharsets.UTF_8)
+                                    .build().toString())
+                    .body(resource);
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.internalServerError().build();
         }
+    }
 }
