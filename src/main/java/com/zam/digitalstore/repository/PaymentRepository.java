@@ -8,21 +8,21 @@ import java.util.Optional;
 
 public interface PaymentRepository extends JpaRepository<Payment, Long> {
 
-    Optional<Payment> findByRazorpayPaymentIdAndProductIdAndStatus(
-            String razorpayPaymentId,
-            Long productId,
-            String status);
+        Optional<Payment> findByRazorpayPaymentIdAndProductIdAndStatus(
+                        String razorpayPaymentId,
+                        Long productId,
+                        String status);
 
-    Optional<Payment> findByRazorpayPaymentId(String razorpayPaymentId);
+        Optional<Payment> findByRazorpayPaymentId(String razorpayPaymentId);
 
-    // Check if a product is already purchased by a user
-    Optional<Payment> findByCustomerEmailAndProductIdAndStatus(
-            String customerEmail,
-            Long productId,
-            String status);
+        // Check if a product is already purchased by a user
+        Optional<Payment> findFirstByCustomerEmailAndProductIdAndStatusOrderByCreatedAtDesc(
+                        String customerEmail,
+                        Long productId,
+                        String status);
 
-    // Get all successful purchases of a user
-    List<Payment> findByCustomerEmailAndStatus(
-            String customerEmail,
-            String status);
+        // Get all successful purchases of a user
+        List<Payment> findByCustomerEmailAndStatus(
+                        String customerEmail,
+                        String status);
 }

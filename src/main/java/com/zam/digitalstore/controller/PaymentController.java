@@ -65,7 +65,7 @@ public class PaymentController {
             @RequestParam Long productId) {
 
         return paymentRepository
-                .findByCustomerEmailAndProductIdAndStatus(
+                .findFirstByCustomerEmailAndProductIdAndStatusOrderByCreatedAtDesc(
                         email,
                         productId,
                         "SUCCESS")
