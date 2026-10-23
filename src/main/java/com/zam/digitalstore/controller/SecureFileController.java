@@ -76,6 +76,7 @@ public class SecureFileController {
                         }
 
                         String storedFile = product.get().getFileUrl();
+                        System.out.println("DOWNLOAD FILE URL: " + storedFile);
 
                         if (storedFile == null || storedFile.isBlank()) {
                                 return ResponseEntity.notFound().build();
