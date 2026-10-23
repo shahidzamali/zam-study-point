@@ -1,53 +1,63 @@
+
 package com.zam.digitalstore.controller;
 
 import com.zam.digitalstore.model.ContactRequest;
-
-import org.springframework.mail.SimpleMailMessage;
-import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.client.RestClient;
+
+import java.util.Map;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/contact")
 @CrossOrigin("*")
 public class ContactController {
 
-    private final JavaMailSender mailSender;
+    @Value("${RESEND_API_KEY}")
+    private String resendApiKey;
 
-    public ContactController(JavaMailSender mailSender) {
-        this.mailSender = mailSender;
-    }
+    @Value("${RESEND_TO_EMAIL}")
+    private String recipientEmail;
+
+    private final RestClient restClient = RestClient.create();
 
     @PostMapping
     public String sendContactMessage(
             @RequestBody ContactRequest request) {
 
-        // Email service is not configured on Render Free
-
         try {
+            Map<String, Object> email = Map.of(
+                    "from", "Zam Study Point <onboarding@resend.dev>",
+                    "to", List.of(recipientEmail),
+                    "reply_to", request.getEmail(),
+                    "subject", "Zam Study Point - "
+                            + request.getSubject(),
+                    "text", "Name: " + request.getName()
+                            + "\nEmail / Phone: "
+                            + request.getEmail()
+                            + "\nSubject: "
+                            + request.getSubject()
+                            + "\nMessage: "
+                            + request.getMessage());
 
-            SimpleMailMessage mail = new SimpleMailMessage();
-
-            mail.setTo("mdshahidzamali@gmail.com");
-
-            mail.setSubject(
-                    "Zam Digital Store - " + request.getSubject());
-
-            mail.setText(
-                    "New Contact Message\n\n" +
-                            "Name: " + request.getName() + "\n" +
-                            "Email / Phone: " + request.getEmail() + "\n\n" +
-                            "Subject: " + request.getSubject() + "\n\n" +
-                            "Message:\n" +
-                            request.getMessage());
-
-            mailSender.send(mail);
+            restClient.post()
+                    .uri("https://api.resend.com/emails")
+                    .header(
+                            HttpHeaders.AUTHORIZATION,
+                            "Bearer " + resendApiKey)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(email)
+                    .retrieve()
+                    .toBodilessEntity();
 
             return "Message sent successfully";
 
         } catch (Exception e) {
-
-            e.printStackTrace();
-
+            System.err.println(
+                    "Resend email failed: " + e.getMessage());
             return "Failed to send message";
         }
     }
