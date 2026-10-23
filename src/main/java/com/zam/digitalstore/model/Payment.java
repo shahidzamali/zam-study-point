@@ -41,6 +41,7 @@ public class Payment {
 
     @PrePersist
     public void onCreate() {
-        createdAt = LocalDateTime.now();
+        createdAt = LocalDateTime.now(
+                java.time.ZoneId.of("Asia/Kolkata"));
     }
 }
