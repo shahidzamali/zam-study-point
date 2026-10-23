@@ -13,9 +13,7 @@ public class ContactController {
 
     private final JavaMailSender mailSender;
 
-    public ContactController(
-            @org.springframework.beans.factory.annotation.Autowired(required = false) JavaMailSender mailSender) {
-
+    public ContactController(JavaMailSender mailSender) {
         this.mailSender = mailSender;
     }
 
@@ -24,9 +22,6 @@ public class ContactController {
             @RequestBody ContactRequest request) {
 
         // Email service is not configured on Render Free
-        if (mailSender == null) {
-            return "Contact message received successfully";
-        }
 
         try {
 
